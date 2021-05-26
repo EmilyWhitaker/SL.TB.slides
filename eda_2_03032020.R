@@ -6,6 +6,7 @@ library(FSA); library(dplyr);library(magrittr);library(tidyr) # data management
 library(mgcv);library(nlme); library(lme4) # modeling
 library(viridisLite); library(gridExtra); library(ggplot2) # data viz 
 library(lubridate) # dealing with dates
+library(ggpubr)
 
 #=========
 # skip ahead
@@ -45,11 +46,11 @@ data = full_join(abiotic, algae, by=c("year","daynum","sampledate"))
 
 data %<>% subset(year > 1996)
 
-write.csv(data, 'data/clean_algae_abiotic_03202020.csv',row.names = F)
+write.csv(data, 'data/clean_algae_abiotic_03032020.csv',row.names = F)
 
 
 #======================
-data = read.csv('data/clean_algae_abiotic_03202020.csv',stringsAsFactors = F)
+data = read.csv('data/clean_algae_abiotic_03032020.csv',stringsAsFactors = F)
 
 # pull out total biovolumes
 totals = subset(data, Genus == "TotalBiovolume")
@@ -294,12 +295,12 @@ genus.long$CellBioVol[is.na(genus.long$CellBioVol)] = 0
 ggplot(subset(genus.long, sampledate=='1997-01-14'), aes(Genus, CellBioVol))+
   geom_point()
 
-write.csv(genus.long, 'data/genus_clean_03202020.csv', row.names = F)
+write.csv(genus.long, 'data/genus_clean_03032020.csv', row.names = F)
 
 #======== 
 
 # start looking at genus-specific trends
-genus = read.csv('data/genus_clean_03202020.csv', stringsAsFactors = F)
+genus = read.csv('data/genus_clean_03032020.csv', stringsAsFactors = F)
 genus$CellBioVol[genus$CellBioVol==0] <- NA
 
 genus$chlor = abs(genus$chlor)
@@ -387,11 +388,13 @@ ggplot(subset(genus, Genus %in% gen.keep), aes(sampledate, log(CellBioVol), colo
   labs(x='Year')
 
 
-
+genus2[Genus==is.na] <- 'Other'
 
 gen.nine = c('NA',"Asterocapsa","Cocconeis","Flagellated Green", "Cf. Komvophoron / Trichormus","Cyanobacteria","Elakatothrix","Mallomonas",
                          "Segmented Green", "Peanut")
 
+gen.8 = c("Asterocapsa","Cocconeis","Flagellated Green", "Cf. Komvophoron / Trichormus","Cyanobacteria","Elakatothrix","Mallomonas",
+             "Segmented Green", "Peanut")
 
 ggplot(subset(genus, Genus %in% gen.nine), aes(sampledate, log(CellBioVol), color=Genus))+
   geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
@@ -422,21 +425,219 @@ ggplot(subset(genus, Genus %in% gen.nine), aes(sampledate, log(CellBioVol), colo
   theme_classic()+
   labs(x='Year')
 
-#interesting genus to pull out 
-# Limnothrix, Lindavia, Microcystis
-#Peanut, Cocconeis 
+
+#capture zeros in this set 
+
+genus2= read.csv('data/clean_abiotic_genus_03262020.csv', stringsAsFactors = F)
+genus2$sampledate = mdy(genus2$sampledate)
+
+genus3= read.csv('data/Na_as_Other_clean_abiotic_genus_03262020.csv', stringsAsFactors = F)
+genus3$sampledate = mdy(genus3$sampledate)
+
+genus[genus=="Cf. Craspedostauros"] <- NA
 
 
-#######
+ggplot(subset(genus2, Genus %in% gen.keep), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_smooth(aes(color=Genus), se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
 
-#Want to create ice off var sheet and ice on var sheet-- did we kind of already do this?
-  # is there a way to graph NAs? couldnt get a line when I tried 
+ggplot(subset(genus2, Genus %in% gen.keep), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_smooth(aes(color=Genus), method='lm',se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
 
-#add additional perams to genus dataset/ then copy process to totals dataset
+ice.labs <- c("Ice Off", "Ice On")
+names(ice.labs) <- c(0, 1)
+
+ggplot(subset(genus2, Genus %in% gen.keep), aes(sampledate, log(CellBioVol), color=Genus))+
+  #geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  #geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point(data=subset(genus, Genus %in% gen.keep), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_smooth(data=subset(genus, Genus %in% gen.keep), aes(sampledate, log(CellBioVol), color=Genus), method='lm', se=T)+
+  scale_color_brewer(palette = 'Paired')+
+  facet_wrap(~ice.pres, labeller=labeller(ice.pres = ice.labs))+
+  theme_classic()+
+  labs(x='Year')
+
+ggplot(subset(genus2, Genus %in% gen.8), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_smooth(aes(color=Genus), se=T)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
+
+ggplot(subset(genus2, Genus %in% gen.8), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_smooth(aes(color=Genus), method='lm',se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
+
+ice.labs <- c("Ice Off", "Ice On")
+names(ice.labs) <- c(0, 1)
+
+ggplot(subset(genus2, Genus %in% gen.8), aes(sampledate, log(CellBioVol), color=Genus))+
+  #geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  #geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point(data=subset(genus2, Genus %in% gen.8), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_smooth(data=subset(genus2, Genus %in% gen.8), aes(sampledate, log(CellBioVol), color=Genus), method='lm', se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  facet_wrap(~ice.pres, labeller=labeller(ice.pres = ice.labs))+
+  theme_classic()+
+  labs(x='Year')
+
+ggplot(genus2$Genus, aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_smooth(aes(color=Genus), se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
+
+ggplot(subset(genus2, Genus %in% gen.keep), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_line(linetype='dotted')+
+  geom_smooth(aes(color=Genus), method='lm',se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
+
+gen.dinos<- c('Naked Dinoflagellate','Armored Dinoflagellate')
+gen.main = c("Armored Dinoflagellate","Naked Dinoflagellate","Limnothrix","Microcystis","Lindavia",
+             "Cryptomonad", "Asterionella", "Dinobryon", "Fragilaria", "Asterocapsa","Cocconeis",
+             "Flagellated Green", "Cf. Komvophoron / Trichormus","Cyanobacteria","Elakatothrix",
+             "Mallomonas", "Segmented Green", "Peanut")
+
+gen.main.total = c("Armored Dinoflagellate","Naked Dinoflagellate","Limnothrix","Microcystis","Lindavia",
+                   "Cryptomonad", "Asterionella", "Dinobryon", "Fragilaria","Cocconeis",
+                   "Flagellated Green", "Cf. Komvophoron / Trichormus","Cyanobacteria","Elakatothrix","Mallomonas",
+                   "Segmented Green", "Peanut","Other")
 
 
 
+chems = c("wtemp","o2","o2sat","cond","frlight","chlor.int", "phaeo", "ph",	"phair","alk","dic","tic",
+          "doc","toc","no3no2", "no2","nh4","totnf","totnuf","totpf", "totpuf", "drsif",	"brsif",	
+          "brsiuf",	"tpm","cl",	"so4",	"ca",	"mg",	"na",	"k",	"fe", "mn",	"chlor.surf",	"avsnow",	"totice",
+          "whiteice", "blueice","light","iceduration")
+
+
+#Asterocapsa-- NOT ENOUGH DATA
+#DONT LOOK @ Cyanobacteria in WINTER
+
+#Just need to go through Others 
+
+gen.ndmi=c("Asterionella")
+
+
+#chems
+ggplot(subset(genus2, Genus %in%gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point(size=3)+
+  geom_line(linetype='dotted')+
+  stat_regline_equation()+
+  geom_smooth(aes(color=Genus), method='lm',se=T)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
+
+
+ggplot(subset(genus2, Genus %in% gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus))+
+  #geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  #geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point(data=subset(genus2,Genus %in% gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus), size=3)+
+  geom_smooth(data=subset(genus2, Genus %in% gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus), method='lm', se=F)+
+  #scale_fill_brewer(palette = 'Set1')+
+  stat_regline_equation()+
+  geom_line(linetype='dotted')+
+  scale_fill_manual()+
+  facet_wrap(~ice.pres, labeller=labeller(ice.pres = ice.labs))+
+  theme_classic()+
+  labs(x='Year')
+
+
+lm(formula= gen.ndmi)
+
+ggplot(subset(genus2, Genus %in%gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point(size=3)+
+  geom_line(linetype='dotted')+
+  geom_smooth(aes(color=Genus), method='lm',se=T)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
+
+
+ice.labs <- c("Ice Off", "Ice On")
+names(ice.labs) <- c(0, 1)
+
+library(RColorBrewer)
+colourCount = length(unique(gen.main.total))
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+
+ggplot(subset(genus2, Genus %in% gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus))+
+  #geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  #geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point(data=subset(genus2,Genus %in% gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus), size=3)+
+  geom_smooth(data=subset(genus2, Genus %in% gen.ndmi), aes(sampledate, log(CellBioVol), color=Genus), method='lm', se=T)+
+  #scale_fill_brewer(palette = 'Set1')+
+  stat_regline_equation()+
+  geom_line(linetype='dotted')+
+  scale_fill_manual()+
+  facet_wrap(~ice.pres, labeller=labeller(ice.pres = ice.labs))+
+  theme_classic()+
+  labs(x='Year')
+
+gen.main = c("Armored Dinoflagellate","Naked Dinoflagellate","Limnothrix","Microcystis","Lindavia",
+             "Cryptomonad", "Asterionella", "Dinobryon", "Fragilaria", "Asterocapsa","Cocconeis",
+             "Flagellated Green", "Cf. Komvophoron / Trichormus","Cyanobacteria","Elakatothrix",
+             "Mallomonas", "Segmented Green", "Peanut")
+
+gen.main.total = c("Armored Dinoflagellate","Naked Dinoflagellate","Limnothrix","Microcystis","Lindavia",
+             "Cryptomonad", "Asterionella", "Dinobryon", "Fragilaria", "Asterocapsa","Cocconeis",
+             "Flagellated Green", "Cf. Komvophoron / Trichormus","Cyanobacteria","Elakatothrix","Mallomonas",
+             "Segmented Green", "Peanut","Total")
 
 
 
+ggplot(subset(genus2, Genus %in% gen.main.total), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_line(linetype='dotted')+
+ # geom_smooth(aes(color=Genus), se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
 
+ggplot(subset(genus2, Genus %in% gen.8), aes(sampledate, log(CellBioVol), color=Genus))+
+  geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point()+
+  geom_smooth(aes(color=Genus), method='lm',se=F)+
+  scale_color_brewer(palette = 'Paired')+
+  theme_classic()
+
+
+
+#chem try
+
+ggplot(genus2, o2sat, aes(sampledate, log(CellBioVol), color=Genus))+
+  #geom_vline(data=ice, aes(xintercept=ice.on), linetype='dashed')+
+  #geom_vline(data=ice, aes(xintercept=ice.off), linetype='dotted')+
+  geom_point(data=genus2,o2, aes(sampledate, log(CellBioVol), color=Genus), size=3)+
+  geom_smooth(data=genus2, o2, aes(sampledate, log(CellBioVol), color=Genus), method='lm', se=T)+
+  #scale_fill_brewer(palette = 'Set1')+
+  geom_line(linetype='dotted')+
+  scale_fill_manual()+
+  facet_wrap(~ice.pres, labeller=labeller(ice.pres = ice.labs))+
+  theme_classic()+
+  labs(x='Year')
